@@ -1,5 +1,6 @@
 package chattingAPI.backend.config;
 
+import chattingAPI.backend.AppConstantVaribles;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -10,7 +11,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
-@CrossOrigin("http://localhost:5173")
+@CrossOrigin(AppConstantVaribles.FRONT_END_URL)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
@@ -30,7 +31,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/chat")
-                .setAllowedOrigins("http://localhost:5173") //this for frontend url
+                .setAllowedOrigins(AppConstantVaribles.FRONT_END_URL) //this for frontend url
                 .withSockJS();
     }
 //    /chat par connetion banega

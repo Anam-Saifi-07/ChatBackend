@@ -1,5 +1,6 @@
 package chattingAPI.backend.controller;
 
+import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.entity.Message;
 import chattingAPI.backend.entity.Room;
 import chattingAPI.backend.payload.RequestMsgBody;
@@ -17,7 +18,7 @@ import java.util.Optional;
 
 @Controller
 @RequiredArgsConstructor
-@CrossOrigin("http://localhost:5173")
+@CrossOrigin(AppConstantVaribles.FRONT_END_URL)
 public class ChatController {
 
     private final RoomRepo roomRepo;
