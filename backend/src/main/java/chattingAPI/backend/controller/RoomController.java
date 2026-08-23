@@ -22,7 +22,11 @@ public class RoomController {
 
     private final RoomRepo roomRepo;
     private  final MessageRepo messageRepo;
-
+// check for ping pong process
+    @GetMapping("/")
+    public String home() {
+        return "Backend is running!";
+    }
 //    for join the room by the id
     @GetMapping("/get/{id}")
     public ResponseEntity<?> joinRoom(@PathVariable String id){
