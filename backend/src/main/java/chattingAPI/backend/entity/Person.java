@@ -22,13 +22,13 @@ public class Person {
     @Id
     private String id;
 
-    @Column(nullable = false)
+    @Column(nullable = false,unique = true)
     private String mail;
 
-    @Column(nullable = false)
+    @Column(nullable = false,unique = true)
     private String name;
 
-    @Column(name = "hash_password",nullable = false)
+    @Column(name = "hash_password",nullable = false,unique = true)
     private String password;
 
     private boolean isMale;

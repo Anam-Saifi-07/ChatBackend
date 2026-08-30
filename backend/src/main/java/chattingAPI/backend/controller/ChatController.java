@@ -32,12 +32,12 @@ public class ChatController {
         if(room.isEmpty()){
             throw new RuntimeException("Room not exist");
         }
-        System.out.print(requestmsgbody.getContent());
-        System.out.print(requestmsgbody.getPersonID());
+//        System.out.print(requestmsgbody.getContent());
+//        System.out.print(requestmsgbody.getPersonID());
         Message newMessage=new Message();
         newMessage.setContent(requestmsgbody.getContent());
-        newMessage.setPersonID(requestmsgbody.getPersonID());
-        newMessage.setRoomID(roomId);
+        newMessage.getPerson().setId((requestmsgbody.getPersonID()));
+//        newMessage.setRoomID(roomId);
         messageRepo.save(newMessage);
         return newMessage;
     }

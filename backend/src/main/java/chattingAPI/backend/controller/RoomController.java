@@ -46,7 +46,7 @@ public class RoomController {
             return ResponseEntity.badRequest().body("Room Already Exit");
         }
         Room newRoom=new Room();
-        newRoom.setRoomID(roomDto.getId());
+        newRoom.setId(roomDto.getId());
         newRoom.setName(roomDto.getName());
         roomRepo.save(newRoom);
         return ResponseEntity.status(HttpStatus.CREATED).body(newRoom);
@@ -59,7 +59,8 @@ public class RoomController {
         if(room.isEmpty()){
             return ResponseEntity.badRequest().body("Room Not Exist...");
         }
-        List<Message> allmsg=messageRepo.findAllByRoomID(id);
+        List<Message> allmsg=messageRepo.findAllById(123L);
+        if(allmsg.isEmpty())return ResponseEntity.badRequest().body("Hard coded");
         return ResponseEntity.ok(allmsg);
     }
 

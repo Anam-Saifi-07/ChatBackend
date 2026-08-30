@@ -16,7 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class Room {
     @Id
-    private String roomID;
+    private String id;
 
     @Column(nullable = false)
     private  String name;
@@ -26,9 +26,5 @@ public class Room {
 
     @Column(nullable = false)
     private boolean isGroup;
-
-    @OneToMany(mappedBy = "roomID")
-    private List<Message> messageList;
-
 
 }

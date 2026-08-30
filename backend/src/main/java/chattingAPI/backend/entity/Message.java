@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Entity
@@ -25,15 +26,14 @@ public class Message {
     private String content;
 
     @CreationTimestamp
-    private Date createdAt;
+    private LocalDateTime createdAt;
 
-//    @ManyToOne
-//    @JoinColumn
-    private String personID;
+    @ManyToOne
+    @JoinColumn(name = "person_id",nullable = false)
+    private Person person;
 
-//    @ManyToOne
-//    @JoinColumn
-    private String roomID;
-
+    @ManyToOne
+    @JoinColumn(name = "room_id",nullable = false)
+    private Room room;
 
 }
