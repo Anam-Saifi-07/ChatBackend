@@ -1,0 +1,46 @@
+package chattingAPI.backend.Security;
+
+import chattingAPI.backend.entity.Person;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.stereotype.Component;
+
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Date;
+
+import io.jsonwebtoken.security.Keys;
+
+import javax.crypto.SecretKey;
+
+@Component
+public class JwtTokenProvider {
+    private final String SECRET_KEY="frffwrinSGIGNfjqOjjrjg93u558gb38tbsjsb8hft8fjknfnr3rnfjj[jegnoighaeeekngin";
+    private final Long JWT_EXPIRATION_MS=1000*60*60*24L;
+
+    private Key getSecretKey(){
+        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+    }
+    public String generateToken(Person person){
+        Date now =new Date();
+        Date expiratonDate=new Date(now.getTime()+JWT_EXPIRATION_MS);
+        return Jwts.builder()
+                .subject(person.getName())
+                .claim("E-mail",person.getMail())
+                .expiration(expiratonDate)
+                .issuedAt(now)
+                .signWith(getSecretKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+    public String getUsernameFromJwtToken(String token){
+        Claims claims=Jwts.parser()
+                .verifyWith((SecretKey) getSecretKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getSubject();
+
+    }
+    // i m here
+}
