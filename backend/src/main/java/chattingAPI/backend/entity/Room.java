@@ -18,10 +18,14 @@ public class Room {
     @Id
     private String roomID;
 
+    @Column(nullable = false)
     private  String name;
 
     @CreationTimestamp
     private Date createdAt;
+
+    @Column(nullable = false)
+    private boolean isGroup;
 
     @OneToMany(mappedBy = "roomID")
     private List<Message> messageList;

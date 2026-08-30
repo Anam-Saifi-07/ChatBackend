@@ -21,6 +21,7 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private  Long id;
 
+    @Column(nullable = false)
     private String content;
 
     @CreationTimestamp
@@ -34,10 +35,5 @@ public class Message {
 //    @JoinColumn
     private String roomID;
 
-//    public void setPersonID(String personID) {
-//       this.personID=personID;
-//    }
 
-//    public void setRoomID(String roomId) {
-//    }
 }
