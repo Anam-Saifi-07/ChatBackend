@@ -2,6 +2,7 @@ package chattingAPI.backend.Security;
 
 import chattingAPI.backend.entity.Person;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class JwtTokenProvider {
     private Key getSecretKey(){
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
     }
+
     public String generateToken(Person person){
         Date now =new Date();
         Date expiratonDate=new Date(now.getTime()+JWT_EXPIRATION_MS);
@@ -43,4 +45,12 @@ public class JwtTokenProvider {
 
     }
     // i m here
+    public boolean validateToken(String autotoken){
+        try{
+            Jwts.parser().verifyWith((SecretKey) getSecretKey()).build().parseSignedClaims(autotoken);
+            return true;
+        }catch(JwtException | IllegalArgumentException ex){
+            return false;
+        }
+    }
 }
