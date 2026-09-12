@@ -2,7 +2,7 @@ package chattingAPI.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.AnyDiscriminatorImplicitValues;
+//import org.hibernate.annotations.AnyDiscriminatorImplicitValues;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.util.ArrayList;

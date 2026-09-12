@@ -1,11 +1,13 @@
 package chattingAPI.backend.Security;
 
 import chattingAPI.backend.DTO.AuthResponse;
+import chattingAPI.backend.DTO.LoginRequest;
 import chattingAPI.backend.DTO.RegisterRequest;
 import chattingAPI.backend.entity.Person;
 import chattingAPI.backend.repo.PersonRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,7 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider=jwtTokenProvider;
     }
+
     public AuthResponse register(RegisterRequest request) {
         if (personRepo.existsByName(request.getName())) {
             throw new RuntimeException("Username already taken!");
@@ -38,8 +41,20 @@ public class AuthService {
 
         personRepo.save(user);
 
-        String token = tokenProvider.generateToken(user.getName());
+
+        String token = jwtTokenProvider.generateToken(user);
         return new AuthResponse(token, user.getId(), user.getName(), user.getMail());
     }
     //here
+    public AuthResponse login(LoginRequest request) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getName(), request.getPassword())
+        );
+
+        Person user = personRepo.findByName(request.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String token = jwtTokenProvider.generateToken(user);
+        return new AuthResponse(token, user.getId(), user.getName(), user.getMail());
+    }
 }

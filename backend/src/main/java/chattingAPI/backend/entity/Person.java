@@ -1,9 +1,6 @@
 package chattingAPI.backend.entity;
 
-import jakarta.annotation.Nullable;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -18,9 +15,11 @@ import java.util.Date;
 public class Person {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(nullable = false,unique = true)
+
     private String mail;
 
     @Column(nullable = false,unique = true)
