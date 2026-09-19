@@ -43,7 +43,7 @@ public class AuthService {
 
 
         String token = jwtTokenProvider.generateToken(user);
-        return new AuthResponse(token, user.getId(), user.getName(), user.getMail());
+        return new AuthResponse(user.getId(), user.getName(), user.getMail(),token);
     }
     //here
     public AuthResponse login(LoginRequest request) {
@@ -55,6 +55,6 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String token = jwtTokenProvider.generateToken(user);
-        return new AuthResponse(token, user.getId(), user.getName(), user.getMail());
+        return new AuthResponse(user.getId(), user.getName(), user.getMail(),token);
     }
 }

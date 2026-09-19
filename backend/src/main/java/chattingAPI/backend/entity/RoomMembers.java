@@ -11,7 +11,9 @@ import java.util.Date;
 @Entity
 @Getter
 @Setter
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class RoomMembers {
 
     @EmbeddedId
