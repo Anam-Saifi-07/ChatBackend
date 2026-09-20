@@ -1,9 +1,6 @@
 package chattingAPI.backend.Service;
 
-import chattingAPI.backend.DTO.CreateRoomRequest;
-import chattingAPI.backend.DTO.MessageResponse;
-import chattingAPI.backend.DTO.RoomDto;
-import chattingAPI.backend.DTO.RoomResponse;
+import chattingAPI.backend.DTO.*;
 import chattingAPI.backend.config.Roles;
 import chattingAPI.backend.entity.Message;
 import chattingAPI.backend.entity.Person;
@@ -115,5 +112,32 @@ public class ChatService {
                 .createdAt(msg.getCreatedAt())
                 .build()
         ).collect(Collectors.toList());
+    }
+
+    //for websocket
+    public MessageResponse saveAndFormatMessage(SendMessagePayload payload,String senderUserName){
+        //1. check the sender
+        Person sender=userRepository.findByName(senderUserName)
+                .orElseThrow(()->new RuntimeException("Sender user not found"));
+        //2. target room ko check karo
+        Room room = chatRoomRepository.findById(payload.getRoomId())
+                .orElseThrow(() -> new RuntimeException("Chat room not found"));
+        // 3. Message Entity create karo aur values assign karo
+        Message message = Message.builder()
+                .person(sender)
+                .room(room)
+                .content(payload.getContent())
+                .build();
+        //4. save on database
+        Message savedMsg=messageRepository.save(message);
+        //5.response dto mein set data for send back response to all subscribers
+        return MessageResponse.builder()
+                .id(savedMsg.getId())
+                .roomId(savedMsg.getRoom().getId())
+                .senderId(savedMsg.getPerson().getId())
+                .senderUsername(savedMsg.getPerson().getName())
+                .content(savedMsg.getContent())
+                .createdAt(savedMsg.getCreatedAt())
+                .build();
     }
 }
