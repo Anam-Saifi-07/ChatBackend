@@ -12,4 +12,7 @@ public class AuthResponse {
     private String name;
     private String gmail;
     private String token;
+    private boolean isMale;
+    private Integer age;
+    private  String phoneNo;
 }

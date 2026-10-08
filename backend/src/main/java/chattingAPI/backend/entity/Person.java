@@ -28,6 +28,8 @@ public class Person {
     @Column(name = "hash_password",nullable = false,unique = true)
     private String password;
 
+    private String phoneNo;
+
     private boolean isMale;
     private int age;
 
