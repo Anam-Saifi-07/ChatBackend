@@ -21,8 +21,8 @@ import javax.crypto.SecretKey;
 @Component
 public class JwtTokenProvider {
 
-
-    private  String SECRET_KEY="fieruhf3984579itj349fkni#483(=ffnwi/ffufwkfwif&6ffi*/sifsk";
+    @Value("${app.key}")
+    private  String SECRET_KEY;
 
     private final Long JWT_EXPIRATION_MS=1000*60*60*24L;
 
