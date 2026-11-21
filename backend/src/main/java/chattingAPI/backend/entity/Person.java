@@ -1,5 +1,6 @@
 package chattingAPI.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,7 +26,8 @@ public class Person {
     @Column(nullable = false,unique = true)
     private String name;
 
-    @Column(name = "hash_password",nullable = false,unique = true)
+    @Column(name = "hash_password",nullable = false)
+    @JsonIgnore
     private String password;
 
     private String phoneNo;

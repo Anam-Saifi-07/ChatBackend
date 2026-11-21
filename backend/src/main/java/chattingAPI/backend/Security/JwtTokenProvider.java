@@ -1,10 +1,13 @@
 package chattingAPI.backend.Security;
 
+import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.entity.Person;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -17,7 +20,10 @@ import javax.crypto.SecretKey;
 
 @Component
 public class JwtTokenProvider {
-    private final String SECRET_KEY="frffwrinSGIGNfjqOjjrjg93u558gb38tbsjsb8hft8fjknfnr3rnfjj[jegnoighaeeekngin";
+
+
+    private  String SECRET_KEY="fieruhf3984579itj349fkni#483(=ffnwi/ffufwkfwif&6ffi*/sifsk";
+
     private final Long JWT_EXPIRATION_MS=1000*60*60*24L;
 
     private Key getSecretKey(){

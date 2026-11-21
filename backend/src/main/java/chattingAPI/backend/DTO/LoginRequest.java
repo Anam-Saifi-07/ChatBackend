@@ -11,8 +11,6 @@ import lombok.*;
 public class LoginRequest {
     @NotBlank(message = "Name is Required")
     private String name;
-    @NotBlank(message = "Username is required")
-    private String mail;
     @NotBlank(message = "Password is required")
     private String password;
 }

@@ -7,6 +7,8 @@ import chattingAPI.backend.DTO.CreateRoomRequest;
 import chattingAPI.backend.DTO.MessageResponse;
 import chattingAPI.backend.DTO.RoomResponse;
 import chattingAPI.backend.Service.ChatService;
+import chattingAPI.backend.entity.Person;
+import chattingAPI.backend.entity.Room;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -38,13 +40,46 @@ public class ChatController2 {
         String currentUsername = authentication.getName();
         return ResponseEntity.ok(chatService.getUserRooms(currentUsername));
     }
+    @GetMapping("/allGroupsExceptCurrent")
+    public ResponseEntity<List<RoomResponse>> getAllGroupsExceptCurrentUserNotMemberOfThem(Authentication authentication){
+        //fetch all rooms that are group not individual chatting
+        String currentUsername = authentication.getName();
+        return ResponseEntity.ok(chatService.getAllGroupsExceptCurrent(currentUsername));
+    }
+    @GetMapping("/allGroupsOfCurrentUser")
+    public ResponseEntity<List<RoomResponse>>getAllGroupsOfCurrentUser(Authentication authentication){
+        String currentUsername= authentication.getName();
+        return ResponseEntity.ok(chatService.allGroupsOfCurrentUser(currentUsername));
+    }
+    @GetMapping("/exploreAllNewPerson")
+    public ResponseEntity<List<Person>> getExploreAllNewPersonForChatting(Authentication authentication){
+        //fetch all rooms that are group not individual chatting
+        String currentUsername = authentication.getName();
+        return ResponseEntity.ok(chatService.exploreAllNewPersonForPersonalChatting (currentUsername));
+    }
+
+    @GetMapping("/getAllPersonThatInChatting")
+    public ResponseEntity<List<Person>> getAllPersonThatChatting(Authentication authentication){
+        //fetch all rooms that are group not individual chatting
+        String currentUsername = authentication.getName();
+        return ResponseEntity.ok(chatService.getAllPersonThatAlreadyinChatting (currentUsername));
+    }
+
+    @GetMapping("/{otherId}/getRoomOfCurrentAndOther") //getRoomId of current user personal chatted with other user
+    public ResponseEntity<Room> getRoomOfPersonalChat(Authentication authentication, @PathVariable String otherId){
+        String currentUsername= authentication.getName();
+        return ResponseEntity.ok(chatService.roomOfPersonsalChat(currentUsername,otherId));
+    }
 
     // 3. Fetch Message History of a specific Room (With Pagination)
     @GetMapping("/{roomId}/messages")
     public ResponseEntity<List<MessageResponse>> getRoomMessages(
             @PathVariable String roomId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "30") int size) {
-        return ResponseEntity.ok(chatService.getRoomMessages(roomId, page, size));
+            @RequestParam(defaultValue = "30") int size,
+            Authentication authentication) {
+
+        // Pass authentication.getName() to ensure caller is a member
+        return ResponseEntity.ok(chatService.getRoomMessages(roomId, authentication.getName(), page, size));
     }
 }

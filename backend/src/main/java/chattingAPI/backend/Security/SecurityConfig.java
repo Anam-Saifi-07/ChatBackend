@@ -43,7 +43,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**","/api/v2/auth/**", "/ws-chat/**").permitAll()
+                        .requestMatchers("/api/auth/**","/api/v2/auth/**", "/ws-chat/**","/ws-chat/info").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

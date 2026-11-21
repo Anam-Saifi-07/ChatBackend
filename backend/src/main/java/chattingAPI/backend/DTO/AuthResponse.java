@@ -10,7 +10,7 @@ public class AuthResponse {
 
     private String id;
     private String name;
-    private String gmail;
+    private String mail;
     private String token;
     private boolean isMale;
     private Integer age;

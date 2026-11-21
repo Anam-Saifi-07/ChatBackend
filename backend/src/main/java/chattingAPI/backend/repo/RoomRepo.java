@@ -9,5 +9,6 @@ import java.util.List;
 
 @Repository
 public interface RoomRepo extends JpaRepository<Room,String> {
-
+    List<Room> findAllByIsGroupTrue();
+    List<Room> findAllByIsGroupFalse();
 }

@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Connection Feature - Complete Documentation</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #1a1a2e; margin: 40px; font-size: 13px; }
+  h1 { color: #0f3460; border-bottom: 4px solid #e94560; padding-bottom: 10px; font-size: 26px; }
+  h2 { color: #0f3460; border-left: 6px solid #e94560; padding-left: 12px; margin-top: 35px; font-size: 20px; page-break-after: avoid; }
+  h3 { color: #16213e; margin-top: 22px; font-size: 16px; page-break-after: avoid; }
+  code, pre { font-family: 'Consolas', 'Courier New', monospace; }
+  code { background: #eef2f7; padding: 2px 6px; border-radius: 4px; color: #c7254e; font-size: 12px; }
+  pre { background: #1e1e2e; color: #e0e0e0; padding: 14px; border-radius: 8px; overflow-x: hidden; white-space: pre-wrap; word-wrap: break-word; font-size: 11.5px; line-height: 1.45; page-break-inside: avoid; }
+  pre .c { color: #6a9955; } /* comment */
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; page-break-inside: avoid; }
+  th, td { border: 1px solid #c8d0dc; padding: 8px 10px; text-align: left; font-size: 12.5px; vertical-align: top; }
+  th { background: #0f3460; color: #fff; }
+  tr:nth-child(even) { background: #f4f7fb; }
+  .box { padding: 12px 16px; border-radius: 8px; margin: 14px 0; page-break-inside: avoid; }
+  .concept { background: #e8f4fd; border-left: 5px solid #2196f3; }
+  .warn { background: #fff4e5; border-left: 5px solid #ff9800; }
+  .pass { background: #e8f8ee; border-left: 5px solid #4caf50; }
+  .diagram { background: #f7f9fc; border: 1px dashed #8899aa; padding: 14px; font-family: Consolas, monospace; font-size: 12px; white-space: pre; border-radius: 8px; overflow-x: hidden; page-break-inside: avoid; }
+  .pagebreak { page-break-before: always; }
+  .tag { display: inline-block; background: #e94560; color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 11px; margin-right: 6px; }
+  .file { font-weight: bold; color: #0f3460; }
+  .footer { margin-top: 40px; padding-top: 10px; border-top: 2px solid #e94560; font-size: 11px; color: #777; }
+  ul, ol { margin: 8px 0; }
+  li { margin: 4px 0; }
+  .toc { background: #f4f7fb; padding: 16px 24px; border-radius: 8px; border: 1px solid #c8d0dc; }
+  .toc a { color: #0f3460; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h1>Connection Feature - Complete Documentation</h1>
+<p><b>Project:</b> Chatting API (Spring Boot 3.4.4 + MySQL + JWT)<br>
+<b>Feature:</b> Personal (1-to-1) and Group Connection Requests<br>
+<b>Version:</b> v1.0 | <b>Date:</b> Nov 2026</p>
+
+<div class="box concept">
+<b>What is this feature?</b><br>
+User A can send a connection request to User B (personal chat), or a user can request to join a group.
+When the other side accepts, they become connected and a chat room is ready.
+All requests are stored in one separate <code>connection</code> table.
+</div>
+
+<div class="toc">
+<b>Table of Contents</b>
+<ol>
+<li><a href="#concept">Core Concept &amp; Why</a></li>
+<li><a href="#design">Database Design (Connection Table)</a></li>
+<li><a href="#flow">Workflow Diagrams (Personal + Group)</a></li>
+<li><a href="#constraints">DB Constraints - Simple Explanation</a></li>
+<li><a href="#steps">Step-by-Step Implementation (Step 1 to 10)</a></li>
+<li><a href="#api">API Request-Response Reference</a></li>
+<li><a href="#edge">Edge Cases &amp; How They Are Handled</a></li>
+<li><a href="#test">Testing Checklist</a></li>
+<li><a href="#recap">Future Recap - Quick Context</a></li>
+</ol>
+</div>
+
+<!-- ==================== 1. CONCEPT ==================== -->
+<h2 id="concept">1. Core Concept &amp; Why</h2>
+
+<h3>1.1 The Problem</h3>
+<p>Before this feature, two users were "connected" only if a chat room already existed between them.
+There was no way to:</p>
+<ul>
+<li>Send a friend / connection request</li>
+<li>Ask permission before starting a personal chat</li>
+<li>Request to join a group (owner accepts/rejects)</li>
+</ul>
+
+<h3>1.2 The Solution - One New Table</h3>
+<div class="box concept">
+<b>Idea:</b> Create ONE table called <code>connection</code>. Every request (personal or group) is one row in this table.
+A <code>type</code> column tells us which kind it is. A <code>status</code> column tells us the current state.
+</div>
+
+<div class="diagram">
+  USER A                    BACKEND                      DATABASE
+    |                          |                             |
+    |  "I want to chat with B" |                             |
+    |------------------------&gt; |  INSERT connection row      |
+    |                          |  (status = PENDING)         |
+    |                          |---------------------------&gt; |
+    |                          |                             |
+    |                     USER B fetches pending list        |
+    |                          |&lt;--------------------------- |
+    |                          |                             |
+    |                     USER B clicks ACCEPT               |
+    |                          |  UPDATE status = ACCEPTED   |
+    |                          |  CREATE room + 2 members    |
+    |                          |---------------------------&gt; |
+    |  "You are now connected" |                             |
+    |&lt;------------------------ |                             |
+</div>
+
+<h3>1.3 Two Cases, One Table</h3>
+<table>
+<tr><th>Case</th><th>type</th><th>room_id</th><th>receiver_id</th><th>On Accept</th></tr>
+<tr><td><b>Personal</b> (A sends to B)</td><td>PERSONAL</td><td><code>""</code> (empty - no room yet)</td><td>B (target user)</td><td>New 1-to-1 Room + 2 RoomMembers created</td></tr>
+<tr><td><b>Group</b> (User joins Group)</td><td>GROUP</td><td>Existing group room id</td><td>Group owner/admin</td><td>No new room - requester added to existing RoomMembers</td></tr>
+</table>
+
+<!-- ==================== 2. DESIGN ==================== -->
+<h2 id="design" class="pagebreak">2. Database Design (Connection Table)</h2>
+
+<h3>2.1 Table Schema</h3>
+<table>
+<tr><th>Column</th><th>Type</th><th>Null?</th><th>Meaning</th></tr>
+<tr><td><code>id</code></td><td>VARCHAR(36) PK</td><td>No</td><td>UUID - unique id of the request</td></tr>
+<tr><td><code>type</code></td><td>VARCHAR(20)</td><td>No</td><td><code>PERSONAL</code> or <code>GROUP</code></td></tr>
+<tr><td><code>sender_id</code></td><td>VARCHAR(36)</td><td>No</td><td>Who sent the request (FK -&gt; person)</td></tr>
+<tr><td><code>receiver_id</code></td><td>VARCHAR(36)</td><td>Yes</td><td>Personal: target user. Group: group admin (FK -&gt; person)</td></tr>
+<tr><td><code>room_id</code></td><td>VARCHAR(36)</td><td>No (default <code>""</code>)</td><td>Personal: empty string. Group: group room id (FK -&gt; room)</td></tr>
+<tr><td><code>status</code></td><td>VARCHAR(20)</td><td>No (default PENDING)</td><td><code>PENDING</code>, <code>ACCEPTED</code> or <code>REJECTED</code></td></tr>
+<tr><td><code>created_at</code></td><td>DATETIME</td><td>No</td><td>Auto set on insert</td></tr>
+<tr><td><code>updated_at</code></td><td>DATETIME</td><td>No</td><td>Auto update on change</td></tr>
+</table>
+
+<div class="box warn">
+<b>Why empty string "" instead of NULL for room_id?</b><br>
+MySQL does NOT support partial unique indexes (unique only for some rows). So we use <code>""</code> instead of NULL.
+This way ONE unique rule works for BOTH cases: <code>UNIQUE(sender_id, room_id)</code>.<br>
+- Personal: every pair (A, "") can exist only ONCE -&gt; duplicate personal request blocked.<br>
+- Group: every pair (A, groupId) can exist only ONCE -&gt; duplicate join request blocked.
+</div>
+
+<h3>2.2 Entity Relationship (ER) Diagram</h3>
+<div class="diagram">
+ +-----------+          +------------------+          +-----------+
+ |  person   |          |    connection    |          |   room    |
+ +-----------+          +------------------+          +-----------+
+ | id (PK)  |&lt;---------| sender_id   (FK) |          | id (PK)   |
+ | name     |          | receiver_id (FK) |---------&gt; | name      |
+ | mail     |          | room_id     (FK) |---------&gt; | is_group  |
+ | ...      |          | type              |          | ...       |
+ +-----------+          | status            |          +-----------+
+                        | id (PK)           |               ^
+                        +------------------+               |
+                              |        |                    |
+                              |        +---- (group case)---+
+                              |                             |
+                              v                             |
+                        +------------------+                |
+                        |  room_members    |----------------+
+                        +------------------+  (personal accept
+                        | person_id (FK)   |   creates this
+                        | room_id  (FK)    |   + new room)
+        +---------------| role             |
+        |               +------------------+
+        |
+   person_id also links back to person table
+</div>
+
+<h3>2.3 Enums (Fixed Value Lists)</h3>
+<table>
+<tr><th>Enum</th><th>Values</th><th>Purpose</th></tr>
+<tr><td><code>ConnectionType</code></td><td>PERSONAL, GROUP</td><td>Which kind of connection</td></tr>
+<tr><td><code>ConnectionStatus</code></td><td>PENDING, ACCEPTED, REJECTED</td><td>Current state of the request</td></tr>
+<tr><td><code>Roles</code> (existing)</td><td>ADMIN, MEMEBER</td><td>Role inside a room (typo MEMEBER is original project style)</td></tr>
+</table>
+
+<!-- ==================== 3. FLOWS ==================== -->
+<h2 id="flow" class="pagebreak">3. Workflow Diagrams</h2>
+
+<h3>3.1 Case A - Personal Connection (1-to-1)</h3>
+<div class="diagram">
+ A sends request                B accepts                      RESULT
+ ------------------             ------------------------       ------------------------------
+ 1. INSERT connection           1. CHECK: I am the receiver?
+    sender=A, receiver=B           (only receiver can accept)
+    room_id="", status=PENDING  2. UPDATE status=ACCEPTED
+                                   WHERE id=? AND status=PENDING
+                                  *** if 0 rows updated -&gt; ERROR
+                                  "already processed" (double-click safe)
+                                3. Also accept reverse row (B->A)
+                                   if it exists (race safety)
+                                4. CREATE new room (is_group=false)
+                                5. INSERT 2 room_members (A and B)
+                                  *** ALL inside ONE transaction
+                                  *** any failure -&gt; full rollback
+</div>
+
+<div class="box concept">
+<b>Reverse Request Race:</b> What if A sends to B AND B sends to A at the same time?<br>
+Both rows are PENDING. When either side accepts, the code accepts <b>both rows</b> and creates <b>only ONE room</b>.
+</div>
+
+<h3>3.2 Case B - Group Join Request</h3>
+<div class="diagram">
+ User U joins Group G           Admin accepts                   RESULT
+ ----------------------         ------------------------       ------------------------------
+ 1. CHECK: G is a group?       1. UPDATE status=ACCEPTED
+    CHECK: U not already          WHERE id=? AND status=PENDING
+    member?                    2. CHECK: U already member? (skip if yes)
+    CHECK: duplicate request?  3. INSERT 1 room_members row
+ 2. FIND group admin              (U, G, role=MEMEBER)
+ 3. INSERT connection            *** NO new room created
+    sender=U, room=G, admin      *** existing group room reused
+    status=PENDING
+</div>
+
+<h3>3.3 Status State Diagram</h3>
+<div class="diagram">
+                 send request
+                      |
+                      v
+               +------------+
+               |  PENDING   |  (initial state, default)
+               +------------+
+                |         |
+        accept  |         |  reject
+                v         v
+        +------------+  +------------+
+        | ACCEPTED   |  | REJECTED   |  (final states - no more changes)
+        +------------+  +------------+
+
+ Note: From ACCEPTED/REJECTED you can NEVER go back to PENDING.
+       Guarded UPDATE only works while status = PENDING.
+</div>
+
+<!-- ==================== 4. CONSTRAINTS ==================== -->
+<h2 id="constraints" class="pagebreak">4. DB Constraints - Simple Explanation</h2>
+
+<div class="box concept">
+<b>What is a constraint?</b> A constraint is like a <b>bouncer at the door of your database</b>.
+It stops bad data BEFORE it gets stored. You do not need to write checking code - the DB does it for you.
+</div>
+
+<table>
+<tr><th>Constraint</th><th>Real Life Example</th><th>How it helps HERE</th></tr>
+<tr>
+<td><b>UNIQUE</b> <code>(sender_id, room_id)</code><br><i>uk_sender_room</i></td>
+<td>Bus ticket: seat A1 in bus-10 can be sold only ONCE.</td>
+<td>Same user cannot send TWO requests to the same person/group. Double-click on "Send" is blocked automatically. DB throws error, code shows "Duplicate request".</td>
+</tr>
+<tr>
+<td><b>FOREIGN KEY</b><br>on sender_id, receiver_id, room_id</td>
+<td>Bank form: father's name must exist in the father registry.</td>
+<td>You cannot insert a connection with a fake or deleted room id / user id. Garbage data is impossible.</td>
+</tr>
+<tr>
+<td><b>NOT NULL</b><br>on sender_id, room_id, status, type</td>
+<td>Exam form: roll number field cannot be left blank.</td>
+<td>Every request always has a sender and a status. No "empty" records.</td>
+</tr>
+<tr>
+<td><b>DEFAULT</b><br>status = PENDING</td>
+<td>New form opens with a pre-selected option.</td>
+<td>When inserting, you can skip the status field - DB sets PENDING by itself.</td>
+</tr>
+<tr>
+<td><b>INDEX</b><br>idx_receiver_status<br>idx_room_status</td>
+<td>Book index: find chapter fast without reading whole book.</td>
+<td>"Show my pending requests" stays fast even with 1 million rows.</td>
+</tr>
+</table>
+
+<h3>4.1 What happens when duplicate is inserted?</h3>
+<div class="diagram">
+ Application code                MySQL
+ ----------------                ----
+ INSERT connection twice   --&gt;  Table has UNIQUE(sender_id, room_id)
+                                Row 1: (A, "") - OK
+                                Row 2: (A, "") - REJECTED by DB
+      &lt;-- Exception:            "Duplicate entry ... for key uk_sender_room"
+          DataIntegrityViolationException
+          Service catches it and returns friendly error
+</div>
+
+<!-- ==================== 5. STEPS ==================== -->
+<h2 id="steps" class="pagebreak">5. Step-by-Step Implementation (Step 1 to 10)</h2>
+
+<div class="box pass">
+<b>Build Order:</b> Step 1-7 = write code &nbsp;|&nbsp; Step 8-10 = verify &amp; test<br>
+<b>Root folder:</b> <code>backend/src/main/java/chattingAPI/backend/</code>
+</div>
+
+<!-- STEP 1 -->
+<h3><span class="tag">STEP 1</span> Enums (Fixed Value Lists)</h3>
+<p><b>Concept:</b> Enum = a list of allowed values, like a traffic light which is only Red/Green/Yellow.
+The DB only accepts these exact values - typos are impossible.</p>
+<p><b>Create 2 files in</b> <span class="file">config/</span> (note: in this project enums live in <code>config</code> package):</p>
+
+<p class="file">File 1: config/ConnectionType.java</p>
+<pre><span class="c">// Allowed kinds of connection</span>
+package chattingAPI.backend.config;
+
+public enum ConnectionType {
+    PERSONAL,   <span class="c">// 1-to-1 chat request</span>
+    GROUP       <span class="c">// join group request</span>
+}</pre>
+
+<p class="file">File 2: config/ConnectionStatus.java</p>
+<pre><span class="c">// Life-cycle of a request</span>
+package chattingAPI.backend.config;
+
+public enum ConnectionStatus {
+    PENDING,    <span class="c">// request sent, waiting</span>
+    ACCEPTED,   <span class="c">// other side said yes</span>
+    REJECTED    <span class="c">// other side said no</span>
+}</pre>
+
+<!-- STEP 2 -->
+<h3><span class="tag">STEP 2</span> Connection Entity (Table)</h3>
+<p><b>Concept:</b> The Entity class = the table. Hibernate reads it and creates the real MySQL table
+automatically (because <code>ddl-auto=update</code> is set in application.properties).</p>
+
+<p class="file">Create: entity/Connection.java</p>
+<pre>package chattingAPI.backend.entity;
+
+import chattingAPI.backend.config.ConnectionStatus;
+import chattingAPI.backend.config.ConnectionType;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.util.Date;
+
+@Entity
+@Table(
+        name = "connection",
+        uniqueConstraints = {
+                <span class="c">// THE key rule: same sender + same room only ONCE</span>
+                @UniqueConstraint(name = "uk_sender_room",
+                                  columnNames = {"sender_id", "room_id"})
+        },
+        indexes = {
+                @Index(name = "idx_sender", columnList = "sender_id"),
+                @Index(name = "idx_receiver_status", columnList = "receiver_id, status"),
+                @Index(name = "idx_room_status", columnList = "room_id, status")
+        }
+)
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class Connection {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ConnectionType type;
+
+    @Column(name = "sender_id", nullable = false, length = 36)
+    private String senderId;
+
+    @Column(name = "receiver_id", length = 36)
+    private String receiverId;
+
+    <span class="c">// personal -&gt; "" , group -&gt; real room id (empty string, NOT null)</span>
+    @Column(name = "room_id", nullable = false, length = 36)
+    @Builder.Default
+    private String roomId = "";
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private ConnectionStatus status = ConnectionStatus.PENDING;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private Date createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private Date updatedAt;
+}</pre>
+
+<!-- STEP 3 -->
+<h3><span class="tag">STEP 3</span> Connection Repository</h3>
+<p><b>Concept:</b> Repository = the messenger between Java and MySQL. Spring Data JPA reads the
+<b>method name</b> and writes the SQL for you. You never write SQL for simple queries.</p>
+
+<p class="file">Create: repo/ConnectionRepo.java</p>
+<pre>package chattingAPI.backend.repo;
+
+import chattingAPI.backend.config.ConnectionStatus;
+import chattingAPI.backend.entity.Connection;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ConnectionRepo extends JpaRepository&lt;Connection, String&gt; {
+
+    <span class="c">// incoming pending requests (my dashboard)</span>
+    List&lt;Connection&gt; findByReceiverIdAndStatus(String receiverId, ConnectionStatus status);
+
+    <span class="c">// outgoing pending requests (I sent)</span>
+    List&lt;Connection&gt; findBySenderIdAndStatus(String senderId, ConnectionStatus status);
+
+    <span class="c">// pending joins for a group</span>
+    List&lt;Connection&gt; findByRoomIdAndStatus(String roomId, ConnectionStatus status);
+
+    <span class="c">// already accepted connection? (duplicate friend check)</span>
+    boolean existsBySenderIdAndReceiverIdAndStatus(String senderId, String receiverId,
+                                                   ConnectionStatus status);
+
+    <span class="c">// specific row find (used for reverse pending check)</span>
+    Optional&lt;Connection&gt; findBySenderIdAndReceiverIdAndStatus(String senderId, String receiverId,
+                                                              ConnectionStatus status);
+
+    <span class="c">// duplicate group join check</span>
+    Optional&lt;Connection&gt; findBySenderIdAndRoomId(String senderId, String roomId);
+
+    <span class="c">// id + receiver check</span>
+    Optional&lt;Connection&gt; findByIdAndReceiverId(String id, String receiverId);
+
+    <span class="c">/***************************************************************
+     * GUARDED UPDATE - the most important query of this feature.
+     * Only updates if current status is still PENDING.
+     * Returns number of rows changed (0 or 1).
+     * 0 means: someone already accepted/rejected - double click safe!
+     ***************************************************************/</span>
+    @Modifying
+    @Transactional
+    @Query("UPDATE Connection c SET c.status = :status, c.updatedAt = CURRENT_TIMESTAMP "
+         + "WHERE c.id = :id AND c.status = :expectedStatus")
+    int updateStatusIfPending(@Param("id") String id,
+                              @Param("status") ConnectionStatus status,
+                              @Param("expectedStatus") ConnectionStatus expectedStatus);
+}</pre>
+
+<div class="box warn">
+<b>Small fix applied in this file:</b> original draft had <code>: expectedStatus</code> (space after colon)
+which breaks JPQL. Correct form is <code>:expectedStatus</code>.
+</div>
+
+<!-- STEP 4 -->
+<h3><span class="tag">STEP 4</span> Add 1 Method to RoomMemberRepo (EDIT existing file)</h3>
+<p><b>Concept:</b> Before adding a member to a group we must ask: "Is this user ALREADY a member?"
+Otherwise we get duplicate member rows.</p>
+
+<p class="file">Edit: repo/RoomMemberRepo.java - add this line inside the interface</p>
+<pre>    <span class="c">// is this user already a member of this room?</span>
+    boolean existsByPersonIdAndRoomId(String personId, String roomId);</pre>
+
+<p>Full file after edit:</p>
+<pre>package chattingAPI.backend.repo;
+
+import chattingAPI.backend.entity.RoomMembers;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface RoomMemberRepo extends JpaRepository&lt;RoomMembers, RoomMembers.RoomMemberId&gt; {
+    List&lt;RoomMembers&gt; findByRoomId(String roomId);
+    List&lt;RoomMembers&gt; findByPersonId(String personId);
+
+    <span class="c">// NEW - already a member?</span>
+    boolean existsByPersonIdAndRoomId(String personId, String roomId);
+}</pre>
+
+<!-- STEP 5 -->
+<h3><span class="tag">STEP 5</span> DTOs (Data Shapes for Request/Response)</h3>
+<p><b>Concept:</b> DTO = the exact shape of JSON that goes in and out.
+We never send the raw Entity (it may contain password etc). Request DTO = what client sends,
+Response DTO = what client sees.</p>
+
+<p class="file">Create: DTO/SendPersonalRequest.java</p>
+<pre>@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+public class SendPersonalRequest {
+    private String receiverId;   <span class="c">// who should receive my request</span>
+}</pre>
+
+<p class="file">Create: DTO/GroupJoinRequest.java</p>
+<pre>@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+public class GroupJoinRequest {
+    private String roomId;       <span class="c">// which group I want to join</span>
+}</pre>
+
+<p class="file">Create: DTO/ConnectionResponse.java</p>
+<pre>@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+public class ConnectionResponse {
+    private String id;
+    private ConnectionType type;
+    private String senderId;
+    private String senderName;     <span class="c">// filled by service (joined from person)</span>
+    private String receiverId;
+    private String roomId;
+    private String roomName;       <span class="c">// filled by service (joined from room)</span>
+    private ConnectionStatus status;
+    private Date createdAt;
+}</pre>
+
+<!-- STEP 6 -->
+<h3><span class="tag">STEP 6</span> Connection Service (all business logic)</h3>
+<p><b>Concept:</b> Service = the brain. All rules live here:
+validation, duplicate checks, guarded updates, room creation.
+Everything that changes data is wrapped in <code>@Transactional</code> - meaning
+<b>all DB changes succeed together, or ALL are rolled back</b> (no half-updated data if the server crashes).</p>
+
+<p class="file">Create: Service/ConnectionService.java</p>
+<pre>package chattingAPI.backend.Service;
+
+import chattingAPI.backend.DTO.ConnectionResponse;
+import chattingAPI.backend.DTO.GroupJoinRequest;
+import chattingAPI.backend.DTO.SendPersonalRequest;
+import chattingAPI.backend.config.ConnectionStatus;
+import chattingAPI.backend.config.ConnectionType;
+import chattingAPI.backend.config.Roles;
+import chattingAPI.backend.entity.*;
+import chattingAPI.backend.repo.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class ConnectionService {
+
+    private final ConnectionRepo connectionRepo;
+    private final PersonRepo personRepo;
+    private final RoomRepo roomRepo;
+    private final RoomMemberRepo roomMemberRepo;
+
+    public ConnectionService(ConnectionRepo connectionRepo, PersonRepo personRepo,
+                             RoomRepo roomRepo, RoomMemberRepo roomMemberRepo) {
+        this.connectionRepo = connectionRepo;
+        this.personRepo = personRepo;
+        this.roomRepo = roomRepo;
+        this.roomMemberRepo = roomMemberRepo;
+    }
+
+    <span class="c">// ==================== PERSONAL ====================</span>
+
+    @Transactional
+    public ConnectionResponse sendPersonalRequest(SendPersonalRequest request, String currentUsername) {
+        Person sender = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+        Person receiver = personRepo.findById(request.getReceiverId())
+                .orElseThrow(() -&gt; new RuntimeException("Receiver not found"));
+
+        <span class="c">// rule 1: no self request</span>
+        if (sender.getId().equals(receiver.getId())) {
+            throw new RuntimeException("Khud ko request nahi bhej sakte");
+        }
+
+        <span class="c">// rule 2: already connected in either direction?</span>
+        boolean alreadyConnected =
+                connectionRepo.existsBySenderIdAndReceiverIdAndStatus(
+                        sender.getId(), receiver.getId(), ConnectionStatus.ACCEPTED)
+             || connectionRepo.existsBySenderIdAndReceiverIdAndStatus(
+                        receiver.getId(), sender.getId(), ConnectionStatus.ACCEPTED);
+        if (alreadyConnected) {
+            throw new RuntimeException("Pehle se connected ho");
+        }
+
+        <span class="c">// rule 3: reverse pending? (B already sent to A) -&gt; accept both instantly</span>
+        boolean reversePending = connectionRepo
+                .findBySenderIdAndReceiverIdAndStatus(
+                        receiver.getId(), sender.getId(), ConnectionStatus.PENDING)
+                .isPresent();
+        if (reversePending) {
+            acceptBothSides(sender.getId(), receiver.getId());
+            Connection connection = connectionRepo
+                    .findBySenderIdAndReceiverIdAndStatus(
+                            sender.getId(), receiver.getId(), ConnectionStatus.ACCEPTED)
+                    .orElseThrow();
+            return toResponse(connection);
+        }
+
+        <span class="c">// rule 4: duplicate pending same direction?</span>
+        boolean duplicatePending = connectionRepo
+                .findBySenderIdAndReceiverIdAndStatus(
+                        sender.getId(), receiver.getId(), ConnectionStatus.PENDING)
+                .isPresent();
+        if (duplicatePending) {
+            throw new RuntimeException("Request already pending hai");
+        }
+
+        <span class="c">// save (DB unique constraint is the final safety net)</span>
+        Connection connection = Connection.builder()
+                .type(ConnectionType.PERSONAL)
+                .senderId(sender.getId())
+                .receiverId(receiver.getId())
+                .roomId("")
+                .status(ConnectionStatus.PENDING)
+                .build();
+        try {
+            connection = connectionRepo.save(connection);
+        } catch (Exception e) {
+            throw new RuntimeException("Duplicate request hai");
+        }
+        return toResponse(connection);
+    }
+
+    @Transactional
+    public ConnectionResponse acceptConnection(String connectionId, String currentUsername) {
+        Person current = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+
+        Connection connection = connectionRepo.findById(connectionId)
+                .orElseThrow(() -&gt; new RuntimeException("Request nahi mili"));
+
+        <span class="c">// rule: only the RECEIVER can accept</span>
+        if (!current.getId().equals(connection.getReceiverId())) {
+            throw new RuntimeException("Sirf receiver accept kar sakta hai");
+        }
+
+        <span class="c">// GUARDED UPDATE - double click protection</span>
+        int updated = connectionRepo.updateStatusIfPending(
+                connectionId, ConnectionStatus.ACCEPTED, ConnectionStatus.PENDING);
+        if (updated == 0) {
+            throw new RuntimeException("Request already processed ho chuki hai");
+        }
+        connection.setStatus(ConnectionStatus.ACCEPTED);
+
+        if (connection.getType() == ConnectionType.PERSONAL) {
+            acceptBothSides(connection.getSenderId(), connection.getReceiverId());
+        } else {
+            addMemberToGroup(connection);
+        }
+        return toResponse(connection);
+    }
+
+    @Transactional
+    public ConnectionResponse rejectConnection(String connectionId, String currentUsername) {
+        Person current = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+
+        Connection connection = connectionRepo.findById(connectionId)
+                .orElseThrow(() -&gt; new RuntimeException("Request nahi mili"));
+
+        if (!current.getId().equals(connection.getReceiverId())) {
+            throw new RuntimeException("Sirf receiver reject kar sakta hai");
+        }
+
+        int updated = connectionRepo.updateStatusIfPending(
+                connectionId, ConnectionStatus.REJECTED, ConnectionStatus.PENDING);
+        if (updated == 0) {
+            throw new RuntimeException("Request already processed ho chuki hai");
+        }
+        connection.setStatus(ConnectionStatus.REJECTED);
+        return toResponse(connection);
+    }
+
+    <span class="c">// ==================== GROUP ====================</span>
+
+    @Transactional
+    public ConnectionResponse sendGroupJoinRequest(GroupJoinRequest request, String currentUsername) {
+        Person sender = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+
+        Room room = roomRepo.findById(request.getRoomId())
+                .orElseThrow(() -&gt; new RuntimeException("Group nahi mila"));
+
+        if (!Boolean.TRUE.equals(room.getIsGroup())) {
+            throw new RuntimeException("Ye group nahi hai");
+        }
+        if (roomMemberRepo.existsByPersonIdAndRoomId(sender.getId(), room.getId())) {
+            throw new RuntimeException("Pehle se member ho");
+        }
+        boolean duplicate = connectionRepo
+                .findBySenderIdAndRoomId(sender.getId(), room.getId()).isPresent();
+        if (duplicate) {
+            throw new RuntimeException("Request already pending hai");
+        }
+
+        <span class="c">// find the group admin (first ADMIN member)</span>
+        String ownerId = roomMemberRepo.findByRoomId(room.getId()).stream()
+                .filter(m -&gt; m.getRole() == Roles.ADMIN)
+                .map(m -&gt; m.getId().getPersonId())
+                .findFirst()
+                .orElseThrow(() -&gt; new RuntimeException("Group admin nahi mila"));
+
+        Connection connection = Connection.builder()
+                .type(ConnectionType.GROUP)
+                .senderId(sender.getId())
+                .receiverId(ownerId)
+                .roomId(room.getId())
+                .status(ConnectionStatus.PENDING)
+                .build();
+        try {
+            connection = connectionRepo.save(connection);
+        } catch (Exception e) {
+            throw new RuntimeException("Duplicate request hai");
+        }
+        return toResponse(connection);
+    }
+
+    <span class="c">// ==================== FETCH ====================</span>
+
+    public List&lt;ConnectionResponse&gt; getPendingIncoming(String currentUsername) {
+        Person current = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+        return connectionRepo.findByReceiverIdAndStatus(current.getId(), ConnectionStatus.PENDING)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    public List&lt;ConnectionResponse&gt; getSentPending(String currentUsername) {
+        Person current = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+        return connectionRepo.findBySenderIdAndStatus(current.getId(), ConnectionStatus.PENDING)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    public List&lt;ConnectionResponse&gt; getGroupPendingRequests(String roomId, String currentUsername) {
+        Person current = personRepo.findByName(currentUsername)
+                .orElseThrow(() -&gt; new RuntimeException("User not found"));
+
+        <span class="c">// only the group admin can see join requests</span>
+        boolean isAdmin = roomMemberRepo.findByRoomId(roomId).stream()
+                .anyMatch(m -&gt; m.getRole() == Roles.ADMIN
+                        &amp;&amp; m.getId().getPersonId().equals(current.getId()));
+        if (!isAdmin) {
+            throw new RuntimeException("Sirf admin dekh sakta hai");
+        }
+        return connectionRepo.findByRoomIdAndStatus(roomId, ConnectionStatus.PENDING)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
+    <span class="c">// ==================== HELPERS ====================</span>
+
+    <span class="c">// accept BOTH directions (handles A-&gt;B and B-&gt;A race), then make ONE room</span>
+    private void acceptBothSides(String personA, String personB) {
+        connectionRepo.findBySenderIdAndReceiverIdAndStatus(
+                        personA, personB, ConnectionStatus.PENDING)
+                .ifPresent(c -&gt; connectionRepo.updateStatusIfPending(
+                        c.getId(), ConnectionStatus.ACCEPTED, ConnectionStatus.PENDING));
+        connectionRepo.findBySenderIdAndReceiverIdAndStatus(
+                        personB, personA, ConnectionStatus.PENDING)
+                .ifPresent(c -&gt; connectionRepo.updateStatusIfPending(
+                        c.getId(), ConnectionStatus.ACCEPTED, ConnectionStatus.PENDING));
+        createPersonalRoom(personA, personB);
+    }
+
+    <span class="c">// create 1-to-1 room only if one doesn't exist already</span>
+    private void createPersonalRoom(String personA, String personB) {
+        boolean roomExists = roomMemberRepo.findByPersonId(personA).stream()
+                .filter(m -&gt; Boolean.FALSE.equals(m.getRoom().getIsGroup()))
+                .anyMatch(m -&gt; roomMemberRepo.findByRoomId(m.getRoom().getId()).stream()
+                        .anyMatch(m2 -&gt; m2.getId().getPersonId().equals(personB)));
+        if (roomExists) return;
+
+        Person userA = personRepo.findById(personA).orElseThrow();
+        Person userB = personRepo.findById(personB).orElseThrow();
+
+        Room room = roomRepo.save(Room.builder().name("").isGroup(false).build());
+
+        roomMemberRepo.save(RoomMembers.builder()
+                .id(new RoomMembers.RoomMemberId(userA.getId(), room.getId()))
+                .person(userA).room(room).role(Roles.MEMEBER).build());
+        roomMemberRepo.save(RoomMembers.builder()
+                .id(new RoomMembers.RoomMemberId(userB.getId(), room.getId()))
+                .person(userB).room(room).role(Roles.MEMEBER).build());
+    }
+
+    <span class="c">// group accept -&gt; add requester into EXISTING room_members</span>
+    private void addMemberToGroup(Connection connection) {
+        Room room = roomRepo.findById(connection.getRoomId())
+                .orElseThrow(() -&gt; new RuntimeException("Group nahi mila"));
+        if (!Boolean.TRUE.equals(room.getIsGroup())) {
+            throw new RuntimeException("Ye group nahi hai");
+        }
+        if (roomMemberRepo.existsByPersonIdAndRoomId(connection.getSenderId(), room.getId())) {
+            return; <span class="c">// already member - do nothing</span>
+        }
+        Person requester = personRepo.findById(connection.getSenderId()).orElseThrow();
+        roomMemberRepo.save(RoomMembers.builder()
+                .id(new RoomMembers.RoomMemberId(requester.getId(), room.getId()))
+                .person(requester).room(room).role(Roles.MEMEBER).build());
+    }
+
+    private ConnectionResponse toResponse(Connection c) {
+        ConnectionResponse res = new ConnectionResponse();
+        res.setId(c.getId());
+        res.setType(c.getType());
+        res.setSenderId(c.getSenderId());
+        res.setReceiverId(c.getReceiverId());
+        res.setRoomId(c.getRoomId());
+        res.setStatus(c.getStatus());
+        res.setCreatedAt(c.getCreatedAt());
+        personRepo.findById(c.getSenderId())
+                .ifPresent(p -&gt; res.setSenderName(p.getName()));
+        if (c.getRoomId() != null &amp;&amp; !c.getRoomId().isEmpty()) {
+            roomRepo.findById(c.getRoomId())
+                    .ifPresent(r -&gt; res.setRoomName(r.getName()));
+        }
+        return res;
+    }
+}</pre>
+
+<!-- STEP 7 -->
+<h3><span class="tag">STEP 7</span> Connection Controller (HTTP endpoints)</h3>
+<p><b>Concept:</b> Controller = the door. It only: (1) receives the URL,
+(2) gets the current user from JWT via <code>authentication.getName()</code>,
+(3) calls the service, (4) returns the response. NO business logic here.
+Pattern is exactly like the existing <code>ChatController2</code>.</p>
+
+<p class="file">Create: controller/ConnectionController.java</p>
+<pre>package chattingAPI.backend.controller;
+
+import chattingAPI.backend.DTO.*;
+import chattingAPI.backend.Service.ConnectionService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v2/connections")
+public class ConnectionController {
+
+    private final ConnectionService connectionService;
+
+    public ConnectionController(ConnectionService connectionService) {
+        this.connectionService = connectionService;
+    }
+
+    <span class="c">// 1. send personal connection request</span>
+    @PostMapping("/personal")
+    public ResponseEntity&lt;ConnectionResponse&gt; sendPersonalRequest(
+            @Valid @RequestBody SendPersonalRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.sendPersonalRequest(request, authentication.getName()));
+    }
+
+    <span class="c">// 2. incoming pending requests</span>
+    @GetMapping("/personal/pending")
+    public ResponseEntity&lt;List&lt;ConnectionResponse&gt;&gt; getPendingIncoming(
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.getPendingIncoming(authentication.getName()));
+    }
+
+    <span class="c">// 3. outgoing pending requests</span>
+    @GetMapping("/personal/sent")
+    public ResponseEntity&lt;List&lt;ConnectionResponse&gt;&gt; getSentPending(
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.getSentPending(authentication.getName()));
+    }
+
+    <span class="c">// 4. accept (personal OR group - both use same endpoint)</span>
+    @PostMapping("/{id}/accept")
+    public ResponseEntity&lt;ConnectionResponse&gt; acceptConnection(
+            @PathVariable String id, Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.acceptConnection(id, authentication.getName()));
+    }
+
+    <span class="c">// 5. reject</span>
+    @PostMapping("/{id}/reject")
+    public ResponseEntity&lt;ConnectionResponse&gt; rejectConnection(
+            @PathVariable String id, Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.rejectConnection(id, authentication.getName()));
+    }
+
+    <span class="c">// 6. group join request</span>
+    @PostMapping("/group/join")
+    public ResponseEntity&lt;ConnectionResponse&gt; sendGroupJoinRequest(
+            @Valid @RequestBody GroupJoinRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.sendGroupJoinRequest(request, authentication.getName()));
+    }
+
+    <span class="c">// 7. group pending requests (admin only)</span>
+    @GetMapping("/group/{roomId}/requests")
+    public ResponseEntity&lt;List&lt;ConnectionResponse&gt;&gt; getGroupPendingRequests(
+            @PathVariable String roomId, Authentication authentication) {
+        return ResponseEntity.ok(
+                connectionService.getGroupPendingRequests(roomId, authentication.getName()));
+    }
+}</pre>
+
+<!-- STEP 8 -->
+<h3><span class="tag">STEP 8</span> Security Check (NO code change needed)</h3>
+<p><b>Concept:</b> <code>SecurityConfig.java</code> already says: everything is protected by JWT
+except <code>/api/auth/**</code>, <code>/api/v2/auth/**</code>, <code>/ws-chat/**</code>.</p>
+<div class="box pass">
+<b>Verify manually (read only, do not edit):</b>
+<ol>
+<li>Open <code>Security/SecurityConfig.java</code></li>
+<li>Confirm <code>/api/v2/connections</code> is NOT in any <code>permitAll()</code> list</li>
+<li>Quick test: call any connection endpoint WITHOUT token -&gt; must return 401/403</li>
+<li>With token -&gt; must return 200</li>
+</ol>
+</div>
+
+<!-- STEP 9 -->
+<h3><span class="tag">STEP 9</span> DB Table Auto-Verify (manual)</h3>
+<p><b>Concept:</b> <code>spring.jpa.hibernate.ddl-auto=update</code> means Hibernate creates/updates
+tables automatically on app start. No manual SQL needed.</p>
+<div class="box concept">
+<b>Do this:</b>
+<ol>
+<li>Start the app: <code>.\mvnw.cmd spring-boot:run</code> (or Run in IDE)</li>
+<li>Open MySQL tool (Navicat / Workbench) -&gt; DB <code>newchatdb</code></li>
+<li>Find new table <code>connection</code> and check:
+    <ul>
+    <li>Columns: id, type, sender_id, receiver_id, room_id, status, created_at, updated_at</li>
+    <li>Unique key: <code>uk_sender_room (sender_id, room_id)</code> &nbsp;&larr; MOST IMPORTANT</li>
+    <li>Indexes: idx_sender, idx_receiver_status, idx_room_status</li>
+    </ul></li>
+<li>Confirm old tables (person, room, room_members, message) are UNCHANGED</li>
+</ol>
+</div>
+
+<!-- STEP 10 -->
+<h3><span class="tag">STEP 10</span> Live Testing (Postman) - see Section 8</h3>
+<p>Full test cases with expected results are in <a href="#test">Section 8: Testing Checklist</a>.</p>
+
+<!-- ==================== 6. API ==================== -->
+<h2 id="api" class="pagebreak">6. API Request-Response Reference</h2>
+
+<div class="box concept">
+<b>Setup for every call:</b><br>
+Base URL: <code>http://localhost:8080</code><br>
+Headers: <code>Authorization: Bearer &lt;JWT_TOKEN&gt;</code> and <code>Content-Type: application/json</code><br>
+Get token from: <code>POST /api/auth/login</code> body: <code>{"name":"A","password":"..."}</code>
+</div>
+
+<h3>6.1 Send Personal Request</h3>
+<pre>POST /api/v2/connections/personal
+
+Request:
+{ "receiverId": "uuid-of-user-B" }
+
+Success 200:
+{
+  "id": "7f3a...",
+  "type": "PERSONAL",
+  "senderId": "uuid-A",
+  "senderName": "Alice",
+  "receiverId": "uuid-B",
+  "roomId": "",
+  "roomName": null,
+  "status": "PENDING",
+  "createdAt": "2026-11-06T10:00:00"
+}
+
+Errors:
+400/500 { "message": "Khud ko request nahi bhej sakte" }      (self request)
+500     { "message": "Pehle se connected ho" }                (already friends)
+500     { "message": "Request already pending hai" }          (duplicate)
+500     { "message": "Duplicate request hai" }                (DB unique blocked)</pre>
+
+<h3>6.2 Get My Incoming Pending Requests</h3>
+<pre>GET /api/v2/connections/personal/pending
+
+Success 200:
+[
+  {
+    "id": "7f3a...",
+    "type": "PERSONAL",
+    "senderId": "uuid-A",
+    "senderName": "Alice",
+    "receiverId": "uuid-B",
+    "roomId": "",
+    "status": "PENDING",
+    "createdAt": "..."
+  }
+]
+(no requests -&gt; [] empty array)</pre>
+
+<h3>6.3 Get My Sent Pending Requests</h3>
+<pre>GET /api/v2/connections/personal/sent
+
+Success 200: [ ... same shape ... ]</pre>
+
+<h3>6.4 Accept Request (personal or group)</h3>
+<pre>POST /api/v2/connections/{connectionId}/accept
+
+Success 200:
+{ "id": "7f3a...", "status": "ACCEPTED", ... }
+
+DB side-effects:
+  PERSONAL -&gt; new room row (is_group=0) + 2 room_members rows
+  GROUP    -&gt; 1 new room_members row in existing group
+
+Errors:
+500 { "message": "Request already processed ho chuki hai" }   (double click / already done)
+500 { "message": "Sirf receiver accept kar sakta hai" }       (wrong user)</pre>
+
+<h3>6.5 Reject Request</h3>
+<pre>POST /api/v2/connections/{connectionId}/reject
+
+Success 200:
+{ "id": "7f3a...", "status": "REJECTED", ... }
+<span class="c">// NO room is created on reject</span></pre>
+
+<h3>6.6 Group Join Request</h3>
+<pre>POST /api/v2/connections/group/join
+
+Request:
+{ "roomId": "uuid-of-group" }
+
+Success 200:
+{
+  "type": "GROUP",
+  "senderId": "uuid-user",
+  "receiverId": "uuid-admin",     // auto-detected group admin
+  "roomId": "uuid-group",
+  "status": "PENDING"
+}
+
+Errors:
+500 { "message": "Pehle se member ho" }
+500 { "message": "Ye group nahi hai" }
+500 { "message": "Request already pending hai" }</pre>
+
+<h3>6.7 Group Pending Requests (admin only)</h3>
+<pre>GET /api/v2/connections/group/{roomId}/requests
+
+Success 200: [ { ... join requests with senderName ... } ]
+
+Errors:
+500 { "message": "Sirf admin dekh sakta hai" }   (non-admin tried)</pre>
+
+<h3>6.8 Endpoint Summary Table</h3>
+<table>
+<tr><th>#</th><th>Method</th><th>Endpoint</th><th>Body</th><th>Who</th><th>Purpose</th></tr>
+<tr><td>1</td><td>POST</td><td>/api/v2/connections/personal</td><td>receiverId</td><td>Sender</td><td>Send personal request</td></tr>
+<tr><td>2</td><td>GET</td><td>/api/v2/connections/personal/pending</td><td>-</td><td>Receiver</td><td>Incoming requests</td></tr>
+<tr><td>3</td><td>GET</td><td>/api/v2/connections/personal/sent</td><td>-</td><td>Sender</td><td>My sent requests</td></tr>
+<tr><td>4</td><td>POST</td><td>/api/v2/connections/{id}/accept</td><td>-</td><td>Receiver/Admin</td><td>Accept (both types)</td></tr>
+<tr><td>5</td><td>POST</td><td>/api/v2/connections/{id}/reject</td><td>-</td><td>Receiver/Admin</td><td>Reject</td></tr>
+<tr><td>6</td><td>POST</td><td>/api/v2/connections/group/join</td><td>roomId</td><td>User</td><td>Request group join</td></tr>
+<tr><td>7</td><td>GET</td><td>/api/v2/connections/group/{roomId}/requests</td><td>-</td><td>Admin only</td><td>Group pending list</td></tr>
+</table>
+
+<!-- ==================== 7. EDGE CASES ==================== -->
+<h2 id="edge" class="pagebreak">7. Edge Cases &amp; How They Are Handled</h2>
+
+<table>
+<tr><th>#</th><th>Edge Case</th><th>What could go wrong</th><th>Protection (layer)</th></tr>
+<tr>
+<td>1</td>
+<td><b>Double-click "Send"</b></td>
+<td>Two identical PENDING rows</td>
+<td>Service pre-check + DB <b>UNIQUE(uk_sender_room)</b> constraint (final net)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><b>Reverse race: A&rarr;B and B&rarr;A same time</b></td>
+<td>Two rows, two rooms created</td>
+<td>On send: reverse-pending detected -&gt; auto accept both. On accept: <code>acceptBothSides()</code> accepts both rows, <code>createPersonalRoom()</code> checks existing room first -&gt; only ONE room</td>
+</tr>
+<tr>
+<td>3</td>
+<td><b>Double-click "Accept"</b></td>
+<td>Room created twice</td>
+<td><b>Guarded UPDATE</b> (<code>WHERE status='PENDING'</code>) - 2nd call gets 0 rows -&gt; error "already processed"</td>
+</tr>
+<tr>
+<td>4</td>
+<td><b>Server crash mid-accept</b></td>
+<td>Status changed but room not created (inconsistent)</td>
+<td>Whole accept runs in ONE <code>@Transactional</code> - crash means full rollback, data stays consistent</td>
+</tr>
+<tr>
+<td>5</td>
+<td><b>Wrong user accepts</b></td>
+<td>Stranger approves my request</td>
+<td>Service checks <code>currentUserId == receiverId</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><b>Join group where already member</b></td>
+<td>Duplicate room_members row</td>
+<td>Pre-check <code>existsByPersonIdAndRoomId</code> + skip inside <code>addMemberToGroup</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><b>Self request (A&rarr;A)</b></td>
+<td>Nonsense row</td>
+<td>Service check: sender != receiver</td>
+</tr>
+<tr>
+<td>8</td>
+<td><b>Request to deleted user/group</b></td>
+<td>Orphan data</td>
+<td>Foreign keys + service orElseThrow checks</td>
+</tr>
+<tr>
+<td>9</td>
+<td><b>Non-admin sees group join list</b></td>
+<td>Privacy issue</td>
+<td><code>getGroupPendingRequests</code> verifies ADMIN role</td>
+</tr>
+<tr>
+<td>10</td>
+<td><b>No JWT token</b></td>
+<td>Unauthorized access</td>
+<td>Spring Security filter chain (config already protects /api/v2/**)</td>
+</tr>
+<tr>
+<td>11</td>
+<td><b>Accept after REJECTED</b></td>
+<td>State goes backwards</td>
+<td>Guarded update only works from PENDING -&gt; returns 0 rows</td>
+</tr>
+<tr>
+<td>12</td>
+<td><b>Existing DM room already there</b></td>
+<td>Second 1-to-1 room for same pair</td>
+<td><code>createPersonalRoom()</code> first searches for existing non-group room between both users</td>
+</tr>
+</table>
+
+<!-- ==================== 8. TEST ==================== -->
+<h2 id="test" class="pagebreak">8. Testing Checklist</h2>
+
+<h3>Setup</h3>
+<ol>
+<li>Register 2 users (A, B) -&gt; collect JWT tokens + user ids</li>
+<li>Every request needs: <code>Authorization: Bearer &lt;token&gt;</code></li>
+</ol>
+
+<h3>Test Cases</h3>
+<table>
+<tr><th>#</th><th>Test</th><th>Steps</th><th>Expected Result</th></tr>
+<tr><td>T1</td><td>Send request</td><td>A POST /personal {receiverId:B}</td><td>200, status PENDING; DB row created</td></tr>
+<tr><td>T2</td><td>Duplicate send</td><td>Same call again</td><td>Error "Request already pending / Duplicate"</td></tr>
+<tr><td>T3</td><td>Self request</td><td>A sends to A</td><td>Error "Khud ko request nahi bhej sakte"</td></tr>
+<tr><td>T4</td><td>B sees pending</td><td>B GET /personal/pending</td><td>1 item, senderName=A</td></tr>
+<tr><td>T5</td><td>A sees pending</td><td>A GET /personal/pending</td><td>[] empty (A is sender, not receiver)</td></tr>
+<tr><td>T6</td><td>Accept</td><td>B POST /{id}/accept</td><td>200 ACCEPTED; DB: 1 room + 2 room_members</td></tr>
+<tr><td>T7</td><td>Double accept</td><td>B accepts again</td><td>Error "already processed"</td></tr>
+<tr><td>T8</td><td>Wrong user accepts</td><td>C accepts A&rarr;B request</td><td>Error "Sirf receiver accept kar sakta hai"</td></tr>
+<tr><td>T9</td><td>Reverse race</td><td>A&rarr;B and B&rarr;A both sent</td><td>Auto ACCEPTED, only ONE room</td></tr>
+<tr><td>T10</td><td>Reject flow</td><td>B rejects; check DB</td><td>REJECTED, NO room created</td></tr>
+<tr><td>T11</td><td>Group create</td><td>A POST /api/v2/rooms {isGroup:true}</td><td>Group created, A = ADMIN</td></tr>
+<tr><td>T12</td><td>Group join request</td><td>B POST /group/join {roomId}</td><td>PENDING, type GROUP, receiver=admin A</td></tr>
+<tr><td>T13</td><td>Non-admin list</td><td>B GET /group/{id}/requests</td><td>Error "Sirf admin dekh sakta hai"</td></tr>
+<tr><td>T14</td><td>Admin list</td><td>A GET /group/{id}/requests</td><td>1 pending item with senderName=B</td></tr>
+<tr><td>T15</td><td>Admin accepts</td><td>A POST /{id}/accept</td><td>B added to room_members of SAME group room</td></tr>
+<tr><td>T16</td><td>Group appears for B</td><td>B GET /api/v2/rooms</td><td>Group listed in B's rooms</td></tr>
+<tr><td>T17</td><td>Join twice</td><td>B repeat join request</td><td>Error "already member / already pending"</td></tr>
+<tr><td>T18</td><td>No token</td><td>Call without Authorization header</td><td>401 / 403</td></tr>
+</table>
+
+<div class="box pass"><b>All 18 pass = feature is production ready.</b> If any fails, note the exact error message and debug that service method.</div>
+
+<!-- ==================== 9. RECAP ==================== -->
+<h2 id="recap" class="pagebreak">9. Future Recap - Quick Context (for AI or new developer)</h2>
+
+<div class="box concept">
+<b>One paragraph summary:</b><br>
+The Connection feature adds a separate <code>connection</code> table to store personal (1-to-1)
+and group join requests. A single table with <code>type</code> (PERSONAL/GROUP) and
+<code>status</code> (PENDING/ACCEPTED/REJECTED) columns handles both cases.
+<code>room_id=""</code> for personal and real room id for group - this allows ONE unique constraint
+<code>uk_sender_room(sender_id, room_id)</code> to block all duplicates at DB level.
+Accept is a guarded UPDATE (<code>WHERE status='PENDING'</code>) which prevents double-click bugs,
+and the whole accept operation runs in a transaction: personal accept creates a new 1-to-1 Room
+plus 2 RoomMembers; group accept simply inserts 1 RoomMembers row into the existing group room.
+</div>
+
+<h3>9.1 Files Inventory (what was created / edited)</h3>
+<table>
+<tr><th>Action</th><th>File Path (under src/main/java/chattingAPI/backend/)</th><th>Step</th></tr>
+<tr><td>CREATE</td><td class="file">config/ConnectionType.java</td><td>1</td></tr>
+<tr><td>CREATE</td><td class="file">config/ConnectionStatus.java</td><td>1</td></tr>
+<tr><td>CREATE</td><td class="file">entity/Connection.java</td><td>2</td></tr>
+<tr><td>CREATE</td><td class="file">repo/ConnectionRepo.java</td><td>3</td></tr>
+<tr><td>EDIT</td><td class="file">repo/RoomMemberRepo.java (added existsByPersonIdAndRoomId)</td><td>4</td></tr>
+<tr><td>CREATE</td><td class="file">DTO/SendPersonalRequest.java</td><td>5</td></tr>
+<tr><td>CREATE</td><td class="file">DTO/GroupJoinRequest.java</td><td>5</td></tr>
+<tr><td>CREATE</td><td class="file">DTO/ConnectionResponse.java</td><td>5</td></tr>
+<tr><td>CREATE</td><td class="file">Service/ConnectionService.java</td><td>6</td></tr>
+<tr><td>CREATE</td><td class="file">controller/ConnectionController.java</td><td>7</td></tr>
+<tr><td>NO CHANGE</td><td class="file">Security/SecurityConfig.java (verified only)</td><td>8</td></tr>
+<tr><td>AUTO</td><td class="file">MySQL: connection table (ddl-auto=update)</td><td>9</td></tr>
+</table>
+
+<h3>9.2 Key Decisions (why, not what)</h3>
+<ul>
+<li><b>Empty string "" instead of NULL for room_id</b> - MySQL has no partial unique indexes; "" lets one unique rule cover both cases.</li>
+<li><b>Enums in config package</b> - project convention (Roles already lives there), not in entity package.</li>
+<li><b>Service takes currentUsername (not id)</b> - matches existing ChatService pattern; JWT subject is person.name.</li>
+<li><b>RoomMembers uses composite key</b> - must build with <code>new RoomMembers.RoomMemberId(personId, roomId)</code> + person + room entities (matches ChatService.createRoom).</li>
+<li><b>Guarded UPDATE returns int</b> - 0 rows = already processed; this is the single source of truth for double-click protection.</li>
+<li><b>Connection rows are NEVER deleted</b> - they are the audit trail (status flips to ACCEPTED/REJECTED).</li>
+<li><b>Guarded note:</b> role enum value is <code>Roles.MEMEBER</code> (original project typo) - do not "fix" it, existing DB data depends on it.</li>
+</ul>
+
+<h3>9.3 Known Gaps / Future Improvements</h3>
+<ul>
+<li>No REJECTED-list endpoint (rejected history can be added with same repo method pattern)</li>
+<li>No WebSocket push for new request notifications (can use SimpMessagingTemplate to /topic/user.{id})</li>
+<li>Group: no leave / kick / admin transfer endpoints yet</li>
+<li>Personal accept after reject requires a fresh request (state machine intentionally one-way)</li>
+<li>JWT secret is hardcoded in JwtTokenProvider - should move to environment variable in production</li>
+</ul>
+
+<h3>9.4 How to run / verify quickly</h3>
+<pre>1. Build:  .\mvnw.cmd compile -DskipTests
+2. Run:    .\mvnw.cmd spring-boot:run
+3. Table:  check `connection` in MySQL db `newchatdb`
+4. Test:   run Section 8 checklist in Postman (T1..T18)</pre>
+
+<div class="footer">
+Connection Feature Documentation v1.0 &nbsp;|&nbsp; Chatting API - Spring Boot 3.4.4 + MySQL + JWT &nbsp;|&nbsp; Generated Nov 2026
+</div>
+
+</body>
+</html>
