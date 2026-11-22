@@ -1,5 +1,6 @@
 package chattingAPI.backend.WebSocket;
 
+import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.Security.CustomUserDetailsService;
 import chattingAPI.backend.Security.JwtTokenProvider;
 import org.springframework.context.annotation.Configuration;
@@ -14,12 +15,14 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@CrossOrigin(AppConstantVaribles.FRONT_END_URL)
 public class MyWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -33,7 +36,7 @@ public class MyWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws-chat")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(AppConstantVaribles.FRONT_END_URL)
                 .withSockJS();
     }
 

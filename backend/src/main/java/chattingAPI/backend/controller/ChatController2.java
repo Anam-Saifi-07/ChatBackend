@@ -3,6 +3,7 @@ package chattingAPI.backend.controller;
 
 
 
+import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.DTO.CreateRoomRequest;
 import chattingAPI.backend.DTO.MessageResponse;
 import chattingAPI.backend.DTO.RoomResponse;
@@ -10,13 +11,16 @@ import chattingAPI.backend.Service.ChatService;
 import chattingAPI.backend.entity.Person;
 import chattingAPI.backend.entity.Room;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@Controller
+@CrossOrigin(AppConstantVaribles.FRONT_END_URL)
 @RequestMapping("/api/v2/rooms")
 public class ChatController2 {
 
