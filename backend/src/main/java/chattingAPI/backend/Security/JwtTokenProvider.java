@@ -1,13 +1,11 @@
 package chattingAPI.backend.Security;
 
-import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.entity.Person;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;

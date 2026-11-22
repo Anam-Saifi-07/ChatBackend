@@ -1,5 +1,4 @@
 package chattingAPI.backend.controller;
-import chattingAPI.backend.AppConstantVaribles;
 import chattingAPI.backend.DTO.RoomDto;
 import chattingAPI.backend.entity.Message;
 import chattingAPI.backend.entity.Room;
