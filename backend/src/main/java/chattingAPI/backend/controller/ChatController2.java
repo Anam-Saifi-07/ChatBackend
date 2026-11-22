@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @Controller
-@CrossOrigin(AppConstantVaribles.FRONT_END_URL)
+@CrossOrigin(origins = "${app.frontend.url}")
 @RequestMapping("/api/v2/rooms")
 public class ChatController2 {
 
