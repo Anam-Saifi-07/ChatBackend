@@ -15,8 +15,8 @@ import java.util.Optional;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api")
 @CrossOrigin(origins = "${app.frontend.url}")
+@RequestMapping("/api")
 public class RoomController {
 
     private final RoomRepo roomRepo;

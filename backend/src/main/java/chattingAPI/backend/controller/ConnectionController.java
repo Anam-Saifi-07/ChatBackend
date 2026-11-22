@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "${app.frontend.url}")
 @RequestMapping("/api/v2/connections")
 public class ConnectionController {
 
