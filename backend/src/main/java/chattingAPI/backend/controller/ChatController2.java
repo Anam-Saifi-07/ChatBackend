@@ -30,6 +30,7 @@ public class ChatController2 {
 
     @GetMapping("/ping/pong")
     public ResponseEntity<?> pingpong() {
+        System.out.println("Backend is running");
         return ResponseEntity.ok("Backend is running");
 
     }
