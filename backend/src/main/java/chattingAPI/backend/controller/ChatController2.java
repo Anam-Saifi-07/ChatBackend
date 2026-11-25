@@ -28,6 +28,11 @@ public class ChatController2 {
         this.chatService = chatService;
     }
 
+    @GetMapping("/ping/pong")
+    public ResponseEntity<?> pingpong() {
+        return ResponseEntity.ok("Backend is running");
+
+    }
     // 1. New Chat Room / Direct Chat Create EndPoint
     @PostMapping
     public ResponseEntity<RoomResponse> createRoom(@Valid @RequestBody CreateRoomRequest request,
